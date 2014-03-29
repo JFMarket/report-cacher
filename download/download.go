@@ -4,9 +4,9 @@ package download
 
 import (
 	// "code.google.com/p/go.net/html"
-	// "io/ioutil"
 	"errors"
 	"github.com/PuerkitoBio/goquery"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -15,11 +15,11 @@ import (
 
 // This struct is used to interface with ShopKeep and download reports.
 type Downloader struct {
-	client *http.Client // This client is used throughout this package to interact with ShopKeep.
-	site string // The url of the shopkeep site: https://jonesboroughfarmersmkt.shopkeepapp.com
-	username string
-	password string
-
+	client             *http.Client // This client is used throughout this package to interact with ShopKeep.
+	site               string       // The url of the shopkeep site: https://jonesboroughfarmersmkt.shopkeepapp.com
+	username           string
+	password           string
+	authenticity_token string // The authenticity token used by ShopKeep for form submissions. Obtained at login.
 }
 
 // Returns a reference to a Downloader.
@@ -34,7 +34,7 @@ func New(s string, u string, p string) (*Downloader, error) {
 		client: &http.Client{
 			Jar: cj,
 		},
-		site: s,
+		site:     s,
 		username: u,
 		password: p,
 	}, nil
@@ -58,12 +58,13 @@ func (d *Downloader) Login() error {
 
 	at := authToken(loginPage)
 	if at == "" {
-		return errors.New("Faild to find authenticity_token.")
+		return errors.New("Failed to find authenticity_token.")
 	}
-	log.Println("Found authenticity_token: " + at)
+	d.authenticity_token = at
+	log.Println("Found authenticity_token: " + d.authenticity_token)
 
 	// Get the homepage by posting login credentials
-	hp, err := d.client.PostForm(d.site + "/session",
+	hp, err := d.client.PostForm(d.site+"/session",
 		url.Values{
 			"authenticity_token": {at},
 			"utf8":               {"✓"},
@@ -94,12 +95,65 @@ func (d *Downloader) Login() error {
 	return nil
 }
 
-// Downloads the Sold Items report.
-func (d *Downloader) GetSoldItemsReport() {
+// Downloads the Sold Items report to path p.
+func (d *Downloader) GetSoldItemsReport(p string) error {
 	err := d.Login()
 	if err != nil {
-		log.Fatalln("Could not login. " + err.Error())
+		return errors.New("Could not login. " + err.Error())
 	}
+
+	// Get the Sold Items download page by POSTing relevant information.
+	sip, err := d.client.PostForm(d.site+"/sold_items/create_export",
+		url.Values{
+			"authenticity_token": {d.authenticity_token},
+			"utf8":               {"✓"},
+			"start_date":         {"2014-02-28"},
+			"end_date":           {"2014-03-29"},
+			"chart_requested":    {},
+			"grouped_by":         {},
+			"commit":             {"Retrieve"},
+		})
+	if err != nil {
+		return errors.New("Failed POSTing sold_items/create_export form. " + err.Error())
+	}
+	defer sip.Body.Close()
+
+	// Return an error if the status code is not success.
+	// This is useful when parameters are POSTed incorrectly.
+	if sip.StatusCode != 200 {
+		return errors.New("sold_items/create_export responded with " + sip.Status)
+	}
+
+	// Pull the export respones into a goquery.Document
+	soldItemsPage, err := goquery.NewDocumentFromReader(sip.Body)
+	if err != nil {
+		return errors.New("Failed to access sold_items/create_export results. " + err.Error())
+	}
+
+	// Find the URL of the export
+	reportURL, exists := soldItemsPage.Find(`#download_button input.button[type="submit"]`).Attr("data_reportfile")
+	if !exists {
+		return errors.New("Failed to find a download link for the Sold Items export")
+	}
+
+	// Get the CSV file
+	reportRes, err := d.client.Get(reportURL)
+	if err != nil {
+		return errors.New("Failed to download the report from " + reportURL + " " + err.Error())
+	}
+	defer reportRes.Body.Close()
+
+	report, err := ioutil.ReadAll(reportRes.Body)
+	if err != nil {
+		return errors.New("Failed to read report. " + err.Error())
+	}
+
+	err = ioutil.WriteFile(p, report, 0755)
+	if err != nil {
+		return errors.New("Failed to write file to " + p + " Error: " + err.Error())
+	}
+
+	return nil
 }
 
 // Gets the authenticity token from a form in a goquery.Document.

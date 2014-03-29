@@ -12,5 +12,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	downloader.GetSoldItemsReport()
+	err = downloader.GetSoldItemsReport("files/sold_items.csv")
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
