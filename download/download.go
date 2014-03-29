@@ -13,35 +13,40 @@ import (
 	"net/url"
 )
 
+// This struct is used to interface with ShopKeep and download reports.
 type Downloader struct {
-	// This client is used throughout this package to interact with ShopKeep.
-	client *http.Client
+	client *http.Client // This client is used throughout this package to interact with ShopKeep.
+	site string // The url of the shopkeep site: https://jonesboroughfarmersmkt.shopkeepapp.com
+	username string
+	password string
+
 }
 
-var client *http.Client
-
-// This should be some form of argument.
-var site := "https://jonesboroughfarmersmkt.shopkeepapp.com"
-
-// init() initializes the http.Client with a cookiejar.
-func init() {
+// Returns a reference to a Downloader.
+// Takes the site url, a username and password.
+func New(s string, u string, p string) (*Downloader, error) {
 	cj, err := cookiejar.New(nil)
 	if err != nil {
-		log.Fatalln("Could not initialize cookiejar.")
+		return nil, err
 	}
 
-	client = &http.Client{
-		Jar: cj,
-	}
+	return &Downloader{
+		client: &http.Client{
+			Jar: cj,
+		},
+		site: s,
+		username: u,
+		password: p,
+	}, nil
 }
 
 // Login() authenticates with ShopKeep.
 // Returns a non-nil error value if login fails.
-func Login() error {
+func (d *Downloader) Login() error {
 	// Get the login page
-	lp, err := client.Get("https://jonesboroughfarmersmkt.shopkeepapp.com/")
+	lp, err := d.client.Get(d.site)
 	if err != nil {
-		return errors.New("Could not get: https://jonesboroughfarmersmkt.shopkeepapp.com/")
+		return errors.New("Could not get: " + d.site)
 	}
 	defer lp.Body.Close()
 
@@ -52,15 +57,18 @@ func Login() error {
 	}
 
 	at := authToken(loginPage)
+	if at == "" {
+		return errors.New("Faild to find authenticity_token.")
+	}
 	log.Println("Found authenticity_token: " + at)
 
 	// Get the homepage by posting login credentials
-	hp, err := client.PostForm("https://jonesboroughfarmersmkt.shopkeepapp.com/session",
+	hp, err := d.client.PostForm(d.site + "/session",
 		url.Values{
 			"authenticity_token": {at},
 			"utf8":               {"✓"},
-			"login":              {"chad@snapstudent.com"},
-			"password":           {"password"},
+			"login":              {d.username},
+			"password":           {d.password},
 			"commit":             {"Sign in"},
 		})
 	if err != nil {
@@ -77,7 +85,7 @@ func Login() error {
 	// Check the login status.
 	// Can't simply check response status (ShopKeep returns 200 whether login was successful or not).
 	// Can't check location header as it is not included in the response.
-	if LoginStatus(homePage) == false {
+	if loginStatus(homePage) == false {
 		return errors.New("Login failed. Invalid username or password")
 	}
 
@@ -87,8 +95,8 @@ func Login() error {
 }
 
 // Downloads the Sold Items report.
-func GetSoldItemsReport() {
-	err := Login()
+func (d *Downloader) GetSoldItemsReport() {
+	err := d.Login()
 	if err != nil {
 		log.Fatalln("Could not login. " + err.Error())
 	}
@@ -101,7 +109,7 @@ func authToken(doc *goquery.Document) string {
 }
 
 // Determines whether or not the client is currently logged in based on a goquery.Document.
-func LoginStatus(doc *goquery.Document) bool {
+func loginStatus(doc *goquery.Document) bool {
 	if doc.Find(`#user-controls`).Length() > 0 {
 		return true
 	}

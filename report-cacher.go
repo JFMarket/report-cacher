@@ -7,5 +7,10 @@ import (
 
 func main() {
 	log.Println("Starting...")
-	download.GetSoldItemsReport()
+	downloader, err := download.New("https://jonesboroughfarmersmkt.shopkeepapp.com", "chad@snapstudent.com", "password")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	downloader.GetSoldItemsReport()
 }
