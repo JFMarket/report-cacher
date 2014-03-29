@@ -78,7 +78,7 @@ func (d *Downloader) Login() error {
 	// Get the homepage by posting login credentials
 	hp, err := d.client.PostForm(d.site+"/session",
 		url.Values{
-			"authenticity_token": {at},
+			"authenticity_token": {d.authenticity_token},
 			"utf8":               {"✓"},
 			"login":              {d.username},
 			"password":           {d.password},
