@@ -108,6 +108,7 @@ func (d *Downloader) Login() error {
 }
 
 // Downloads the Sold Items report from startDate to endDate to path p.
+// Dates must be in the form YYYY-MM-DD.
 func (d *Downloader) GetSoldItemsReport(p string, startDate string, endDate string) error {
 	if d.LoggedIn() == false {
 		return errors.New("Not logged in. Perhaps call Login()?")
