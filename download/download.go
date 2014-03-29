@@ -14,6 +14,7 @@ import (
 )
 
 // This struct is used to interface with ShopKeep and download reports.
+// Generally, it should be created with New()
 type Downloader struct {
 	client             *http.Client // This client is used throughout this package to interact with ShopKeep.
 	site               string       // The url of the shopkeep site: https://jonesboroughfarmersmkt.shopkeepapp.com
@@ -66,6 +67,7 @@ func (d *Downloader) Login() error {
 		return errors.New("Failed to login: Could not read response body.")
 	}
 
+	// Determine what the authenticity token is.
 	at := authToken(loginPage)
 	if at == "" {
 		return errors.New("Failed to find authenticity_token.")
@@ -107,6 +109,10 @@ func (d *Downloader) Login() error {
 
 // Downloads the Sold Items report from startDate to endDate to path p.
 func (d *Downloader) GetSoldItemsReport(p string, startDate string, endDate string) error {
+	if d.LoggedIn() == false {
+		return errors.New("Not logged in. Perhaps call Login()?")
+	}
+
 	// Get the Sold Items download page by POSTing relevant information.
 	sip, err := d.client.PostForm(d.site+"/sold_items/create_export",
 		url.Values{
@@ -148,17 +154,35 @@ func (d *Downloader) GetSoldItemsReport(p string, startDate string, endDate stri
 	}
 	defer reportRes.Body.Close()
 
+	// Read the CSV
 	report, err := ioutil.ReadAll(reportRes.Body)
 	if err != nil {
 		return errors.New("Failed to read report. " + err.Error())
 	}
 
+	// Write the CSV to the given file
 	err = ioutil.WriteFile(p, report, 0644)
 	if err != nil {
 		return errors.New("Failed to write file to " + p + " Error: " + err.Error())
 	}
 
 	return nil
+}
+
+// Checks to see if the Downloader is currently logged in.
+func (d *Downloader) LoggedIn() bool {
+	hp, err := d.client.Get(d.site)
+	if err != nil {
+		return false
+	}
+	defer hp.Body.Close()
+
+	homePage, err := goquery.NewDocumentFromReader(hp.Body)
+	if err != nil {
+		return false
+	}
+
+	return loginStatus(homePage)
 }
 
 // Gets the authenticity token from a form in a goquery.Document.
