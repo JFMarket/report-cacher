@@ -22,7 +22,8 @@ type Downloader struct {
 	authenticity_token string // The authenticity token used by ShopKeep for form submissions. Obtained at login.
 }
 
-// Returns a reference to a Downloader.
+// Returns a reference to a Downloader that is logged in and ready to begin
+// downloading reports.
 // Takes the site url, a username and password.
 func New(s string, u string, p string) (*Downloader, error) {
 	cj, err := cookiejar.New(nil)
@@ -30,14 +31,23 @@ func New(s string, u string, p string) (*Downloader, error) {
 		return nil, err
 	}
 
-	return &Downloader{
+	// Initialize the object
+	d := &Downloader{
 		client: &http.Client{
 			Jar: cj,
 		},
 		site:     s,
 		username: u,
 		password: p,
-	}, nil
+	}
+
+	// Go ahead and login
+	err = d.Login()
+	if err != nil {
+		return nil, errors.New("Login Failed.")
+	}
+
+	return d, nil
 }
 
 // Login() authenticates with ShopKeep.
@@ -95,20 +105,15 @@ func (d *Downloader) Login() error {
 	return nil
 }
 
-// Downloads the Sold Items report to path p.
-func (d *Downloader) GetSoldItemsReport(p string) error {
-	err := d.Login()
-	if err != nil {
-		return errors.New("Could not login. " + err.Error())
-	}
-
+// Downloads the Sold Items report from startDate to endDate to path p.
+func (d *Downloader) GetSoldItemsReport(p string, startDate string, endDate string) error {
 	// Get the Sold Items download page by POSTing relevant information.
 	sip, err := d.client.PostForm(d.site+"/sold_items/create_export",
 		url.Values{
 			"authenticity_token": {d.authenticity_token},
 			"utf8":               {"✓"},
-			"start_date":         {"2014-02-28"},
-			"end_date":           {"2014-03-29"},
+			"start_date":         {startDate},
+			"end_date":           {endDate},
 			"chart_requested":    {},
 			"grouped_by":         {},
 			"commit":             {"Retrieve"},

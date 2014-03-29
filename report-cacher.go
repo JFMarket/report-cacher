@@ -12,7 +12,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = downloader.GetSoldItemsReport("files/sold_items.csv")
+	err = downloader.GetSoldItemsReport("files/sold_items.csv", "2014-02-28", "2014-03-29")
 	if err != nil {
 		log.Fatalln(err)
 	}
