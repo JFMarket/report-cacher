@@ -153,7 +153,7 @@ func (d *Downloader) GetSoldItemsReport(p string, startDate string, endDate stri
 		return errors.New("Failed to read report. " + err.Error())
 	}
 
-	err = ioutil.WriteFile(p, report, 0755)
+	err = ioutil.WriteFile(p, report, 0644)
 	if err != nil {
 		return errors.New("Failed to write file to " + p + " Error: " + err.Error())
 	}
