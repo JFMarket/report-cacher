@@ -6,6 +6,8 @@ import (
 	"flag"
 	"github.com/jfmarket/report-cacher/download"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
 	"time"
 )
@@ -33,9 +35,13 @@ func main() {
 	log.Println("Starting...")
 
 	done := make(chan bool)
+
 	// Update on the interval specified on the command line.
 	// close()ing the done channel stops the download manager.
 	go downloadManager(*interval, done)
+
+	// Gracefully handle Ctrl-C
+	catchCtrlC(done)
 
 	// Limit the downloadManager to 3 minutes to avoid
 	// bugging ShopKeep
@@ -52,7 +58,7 @@ func main() {
 func downloadManager(updateInterval time.Duration, done <-chan bool) {
 	log.Println("Update interval is: " + updateInterval.String())
 
-	// Perform initial download when function is called.
+	// Perform initial download when downloadManager starts.
 	update()
 
 	// Perform updates at the given interval
@@ -125,6 +131,18 @@ func downloadSoldItemsReport(d *download.Downloader) {
 	if err != nil {
 		log.Println("Failed to download sold items report. Error: " + err.Error())
 	}
+}
+
+// Catches Ctrl-C and cleans up
+func catchCtrlC(done chan bool) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		close(done)
+		time.Sleep(8 * time.Second)
+		os.Exit(1)
+	}()
 }
 
 // This function is temporary to demonstrate concurrency.
