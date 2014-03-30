@@ -1,3 +1,4 @@
+// Caches reports and makes them available to other applications.
 package main
 
 import (
@@ -33,20 +34,21 @@ func main() {
 
 	done := make(chan bool)
 	// Update on the interval specified on the command line.
-	// The done channel allows the download manager to be stopped.
+	// close()ing the done channel stops the download manager.
 	go downloadManager(*interval, done)
 
 	// Limit the downloadManager to 3 minutes to avoid
 	// bugging ShopKeep
 	time.Sleep(3 * time.Minute)
-	done <- true
+	close(done)
 
 	// Wait one minute for the downloadManager to finish.
 	time.Sleep(1 * time.Minute)
 }
 
 // downloadManager() is responsible for refreshing reports at the given interval.
-// It can be stopped by passing true through the done channel.
+// It can be stopped by close()ing the done channel.
+//     go downloadManager(1*time.Hour, done)
 func downloadManager(updateInterval time.Duration, done <-chan bool) {
 	log.Println("Update interval is: " + updateInterval.String())
 
