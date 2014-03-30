@@ -4,8 +4,10 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"github.com/jfmarket/report-cacher/download"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -20,6 +22,8 @@ var (
 	email     = flag.String("email", "", "The email used to login. (Required)")
 	password  = flag.String("password", "", "The password used to login. (Required)")
 	directory = flag.String("directory", "files", "The directory where reports will be placed.")
+	port      = flag.Int("port", 8085, "The port the webserver will listen on to serve reports.")
+	noweb     = flag.Bool("noweb", false, "When true, the webserver is disabled.")
 )
 
 func main() {
@@ -48,13 +52,21 @@ func main() {
 	// Gracefully handle Ctrl-C
 	catchCtrlC(done)
 
+	if !*noweb {
+		// launch webserver. goroutine for now.
+		go func() {
+			log.Printf("Listenting on port %[1]d. Visit http://localhost:%[1]d in your browser.", *port)
+			err := http.ListenAndServe(fmt.Sprintf(":%d", *port), http.FileServer(http.Dir(*directory)))
+			if err != nil {
+				log.Fatalln("ListenAndServe: ", err)
+			}
+		}()
+	}
+
 	// Limit the downloadManager to 3 minutes to avoid
 	// bugging ShopKeep
 	time.Sleep(3 * time.Minute)
 	close(done)
-
-	// Wait one minute for the downloadManager to finish.
-	time.Sleep(1 * time.Minute)
 }
 
 // downloadManager() is responsible for refreshing reports at the given interval.
