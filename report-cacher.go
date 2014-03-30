@@ -8,16 +8,18 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"sync"
 	"time"
 )
 
 // Define program flags.
 var (
-	interval = flag.Duration("interval", 1*time.Hour, "The interval at which reports will be retrieved. 30 minutes would be 30m or 0.5h. (Required)")
-	site     = flag.String("site", "https://jonesboroughfarmersmkt.shopkeepapp.com", "The address of the ShopKeep site reports will be retrieved from.")
-	email    = flag.String("email", "", "The email used to login. (Required)")
-	password = flag.String("password", "", "The password used to login. (Required)")
+	interval  = flag.Duration("interval", 6*time.Hour, "The interval at which reports will be retrieved. 30 minutes would be 30m or 0.5h. (Required)")
+	site      = flag.String("site", "https://jonesboroughfarmersmkt.shopkeepapp.com", "The address of the ShopKeep site reports will be retrieved from.")
+	email     = flag.String("email", "", "The email used to login. (Required)")
+	password  = flag.String("password", "", "The password used to login. (Required)")
+	directory = flag.String("directory", "files", "The directory where reports will be placed.")
 )
 
 func main() {
@@ -32,7 +34,10 @@ func main() {
 		log.Fatalln("A password is required. -password=mypassword")
 	}
 
+	ensureDirectoryExists(*directory)
+
 	log.Println("Starting...")
+	log.Println("Reports will be stored in: " + *directory)
 
 	done := make(chan bool)
 
@@ -126,10 +131,26 @@ func downloadSoldItemsReport(d *download.Downloader) {
 	today := t.Format(timeLayout)
 	aWeekAgo := t.AddDate(0, 0, -7).Format(timeLayout)
 
-	// files/sold_items.csv may not be cross platform.
-	err := d.GetSoldItemsReport("files/sold_items.csv", aWeekAgo, today)
+	err := d.GetSoldItemsReport(path.Join(*directory, "sold_items.csv"), aWeekAgo, today)
 	if err != nil {
 		log.Println("Failed to download sold items report. Error: " + err.Error())
+	}
+}
+
+// If the given directory structure does not exist,
+// create it.
+func ensureDirectoryExists(d string) {
+	if _, err := os.Stat(*directory); err != nil {
+		if os.IsNotExist(err) {
+			log.Println(*directory + " does not exist. Creating it...")
+			if error := os.MkdirAll(*directory, 0755); error != nil {
+				log.Fatalln("Something went wrong. " + error.Error())
+			} else {
+				log.Println("Successfully created " + *directory)
+			}
+		} else {
+			log.Fatalln("Something went wrong creating the desired directory. " + err.Error())
+		}
 	}
 }
 
