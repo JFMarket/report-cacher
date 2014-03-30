@@ -2,20 +2,39 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"github.com/jfmarket/report-cacher/download"
 	"log"
 	"sync"
 	"time"
 )
 
+// Define program flags.
+var (
+	interval = flag.Duration("interval", 1*time.Hour, "The interval at which reports will be retrieved. 30 minutes would be 30m or 0.5h.")
+	site = flag.String("site", "https://jonesboroughfarmersmkt.shopkeepapp.com", "The address of the ShopKeep site reports will be retrieved from.")
+	email = flag.String("email", "", "The email used to login.")
+	password = flag.String("password", "", "The password used to login.")
+)
+
 func main() {
+	// Parse and verify required options are set.
+	flag.Parse()
+
+	if *email == "" {
+		log.Fatalln("An email is required. -email='x@yz.com'")
+	}
+
+	if *password == "" {
+		log.Fatalln("A password is required. -password=mypassword")
+	}
+
 	log.Println("Starting...")
 
 	done := make(chan bool)
-	// Update once a minute.
-	// This should be configurable on the command line and
-	// definitely should not remain so low.
-	go downloadManager(1*time.Minute, done)
+	// Update on the interval specified on the command line.
+	// The done channel allows the download manager to be stopped.
+	go downloadManager(*interval, done)
 
 	// Limit the downloadManager to 3 minutes to avoid
 	// bugging ShopKeep
@@ -29,15 +48,16 @@ func main() {
 // downloadManager() is responsible for refreshing reports at the given interval.
 // It can be stopped by passing true through the done channel.
 func downloadManager(updateInterval time.Duration, done <-chan bool) {
+	log.Println("Update interval is: " + updateInterval.String())
+
+	// Perform initial download when function is called.
+	update()
+
+	// Perform updates at the given interval
 	for {
 		select {
 		case <-time.Tick(updateInterval):
-			log.Println("Updating...")
-			err := downloadAll()
-			if err != nil {
-				log.Println(err)
-			}
-			log.Println("Reports updated.")
+			update()
 		case <-done:
 			log.Println("Stopping...")
 			return
@@ -48,7 +68,7 @@ func downloadManager(updateInterval time.Duration, done <-chan bool) {
 // downloadAll() orchestrates downloading all known reports concurrently.
 // It returns an error if there is a problem logging in.
 func downloadAll() error {
-	downloader, err := download.New("https://jonesboroughfarmersmkt.shopkeepapp.com", "chad@snapstudent.com", "password")
+	downloader, err := download.New(*site, *email, *password)
 	if err != nil {
 		return errors.New("Failed to initialize downloader: " + err.Error())
 	}
@@ -75,6 +95,15 @@ func downloadAll() error {
 	wg.Wait()
 
 	return nil
+}
+
+func update() {
+	log.Println("Updating...")
+	err := downloadAll()
+	if err != nil {
+		log.Println(err)
+	}
+	log.Println("Reports updated.")
 }
 
 // downloadSoldItemsReport() downloads the Sold Items report for the past week.
