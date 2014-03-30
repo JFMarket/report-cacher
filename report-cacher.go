@@ -12,8 +12,8 @@ import (
 // Define program flags.
 var (
 	interval = flag.Duration("interval", 1*time.Hour, "The interval at which reports will be retrieved. 30 minutes would be 30m or 0.5h.")
-	site = flag.String("site", "https://jonesboroughfarmersmkt.shopkeepapp.com", "The address of the ShopKeep site reports will be retrieved from.")
-	email = flag.String("email", "", "The email used to login.")
+	site     = flag.String("site", "https://jonesboroughfarmersmkt.shopkeepapp.com", "The address of the ShopKeep site reports will be retrieved from.")
+	email    = flag.String("email", "", "The email used to login.")
 	password = flag.String("password", "", "The password used to login.")
 )
 
@@ -97,11 +97,12 @@ func downloadAll() error {
 	return nil
 }
 
+// Run downloadAll() and handle error
 func update() {
 	log.Println("Updating...")
 	err := downloadAll()
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 	log.Println("Reports updated.")
 }

@@ -45,7 +45,7 @@ func New(s string, u string, p string) (*Downloader, error) {
 	// Go ahead and login
 	err = d.Login()
 	if err != nil {
-		return nil, errors.New("Login Failed.")
+		return nil, errors.New("Login Failed. " + err.Error())
 	}
 
 	return d, nil
@@ -99,7 +99,7 @@ func (d *Downloader) Login() error {
 	// Can't simply check response status (ShopKeep returns 200 whether login was successful or not).
 	// Can't check location header as it is not included in the response.
 	if loginStatus(homePage) == false {
-		return errors.New("Login failed. Invalid username or password")
+		return errors.New("Invalid username or password")
 	}
 
 	log.Println("Login successful!")
