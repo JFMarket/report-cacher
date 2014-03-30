@@ -12,10 +12,10 @@ import (
 
 // Define program flags.
 var (
-	interval = flag.Duration("interval", 1*time.Hour, "The interval at which reports will be retrieved. 30 minutes would be 30m or 0.5h.")
+	interval = flag.Duration("interval", 1*time.Hour, "The interval at which reports will be retrieved. 30 minutes would be 30m or 0.5h. (Required)")
 	site     = flag.String("site", "https://jonesboroughfarmersmkt.shopkeepapp.com", "The address of the ShopKeep site reports will be retrieved from.")
-	email    = flag.String("email", "", "The email used to login.")
-	password = flag.String("password", "", "The password used to login.")
+	email    = flag.String("email", "", "The email used to login. (Required)")
+	password = flag.String("password", "", "The password used to login. (Required)")
 )
 
 func main() {
