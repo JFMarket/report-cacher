@@ -106,7 +106,6 @@ func downloadAll() error {
 	// Store download functions in a slice to simplify concurrent downloading.
 	downloadFunctions := []func(*download.Downloader){
 		downloadSoldItemsReport,
-		fakeDownload,
 	}
 
 	// Call each download function concurrently.
@@ -179,9 +178,4 @@ func catchCtrlC(done chan bool) {
 		time.Sleep(8 * time.Second)
 		os.Exit(1)
 	}()
-}
-
-// This function is temporary to demonstrate concurrency.
-func fakeDownload(d *download.Downloader) {
-	log.Println("Inside fakeDownload")
 }
