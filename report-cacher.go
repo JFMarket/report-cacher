@@ -65,8 +65,11 @@ func main() {
 
 	// Limit the downloadManager to 3 minutes to avoid
 	// bugging ShopKeep
-	time.Sleep(3 * time.Minute)
-	close(done)
+	// time.Sleep(3 * time.Minute)
+	// close(done)
+
+	// Run until ctrl-c
+	<-make(chan bool)
 }
 
 // downloadManager() is responsible for refreshing reports at the given interval.
