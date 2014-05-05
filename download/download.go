@@ -170,6 +170,59 @@ func (d *Downloader) GetSoldItemsReport(p string, startDate string, endDate stri
 	return nil
 }
 
+// Downloads the Stock Items report to path p.
+// Dates must be in the form YYYY-MM-DD.
+func (d *Downloader) GetStockItemsReport(p string) error {
+	if d.LoggedIn() == false {
+		return errors.New("Not logged in. Perhaps call Login()?")
+	}
+
+	// Get the Stock Items download page by POSTing relevant information.
+	sip, err := d.client.Get(d.site+"/create_stock_items_export")
+	if err != nil {
+		return errors.New("Failed GETing create_stock_items_export. " + err.Error())
+	}
+	defer sip.Body.Close()
+
+	// Return an error if the status code is not success.
+	if sip.StatusCode != 200 {
+		return errors.New("create_stock_items_export responded with " + sip.Status)
+	}
+
+	// Pull the export respones into a goquery.Document
+	stockItemsPage, err := goquery.NewDocumentFromReader(sip.Body)
+	if err != nil {
+		return errors.New("Failed to access create_stock_items_export results. " + err.Error())
+	}
+
+	// Find the URL of the export
+	reportURL, exists := stockItemsPage.Find(`input.button[type="submit"]`).Attr("data_reportfile")
+	if !exists {
+		return errors.New("Failed to find a download link for the Stock Items export")
+	}
+
+	// Get the CSV file
+	reportRes, err := d.client.Get(reportURL)
+	if err != nil {
+		return errors.New("Failed to download the report from " + reportURL + " " + err.Error())
+	}
+	defer reportRes.Body.Close()
+
+	// Read the CSV
+	report, err := ioutil.ReadAll(reportRes.Body)
+	if err != nil {
+		return errors.New("Failed to read report. " + err.Error())
+	}
+
+	// Write the CSV to the given file
+	err = ioutil.WriteFile(p, report, 0644)
+	if err != nil {
+		return errors.New("Failed to write file to " + p + " Error: " + err.Error())
+	}
+
+	return nil
+}
+
 // Checks to see if the Downloader is currently logged in.
 func (d *Downloader) LoggedIn() bool {
 	hp, err := d.client.Get(d.site)

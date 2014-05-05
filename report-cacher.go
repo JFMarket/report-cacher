@@ -106,6 +106,7 @@ func downloadAll() error {
 	// Store download functions in a slice to simplify concurrent downloading.
 	downloadFunctions := []func(*download.Downloader){
 		downloadSoldItemsReport,
+		downloadStockItemsReport,
 	}
 
 	// Call each download function concurrently.
@@ -148,6 +149,16 @@ func downloadSoldItemsReport(d *download.Downloader) {
 	err := d.GetSoldItemsReport(path.Join(*directory, "sold_items.csv"), aWeekAgo, today)
 	if err != nil {
 		log.Println("Failed to download sold items report. Error: " + err.Error())
+	}
+}
+
+// downloadStockItemsReport() downloads the Stock Items report.
+func downloadStockItemsReport(d *download.Downloader) {
+	log.Println("Inside downloadStockItemsReport")
+
+	err := d.GetStockItemsReport(path.Join(*directory, "stock_items.csv"))
+	if err != nil {
+		log.Println("Failed to download stock items report. Error: " + err.Error())
 	}
 }
 
